@@ -12,8 +12,16 @@ import threading
 import time
 import traceback
 
-import mesos
-import mesos_pb2
+# upgrade from mesos 0.19.0 to mesos 0.20.0 introduce below changes
+# refer to: http://mesos.apache.org/documentation/latest/upgrades/
+try:
+    from mesos.native import MesosExecutorDriver
+    from mesos.interface import Executor
+    from mesos.interface import mesos_pb2
+except ImportError:
+    # fall back to mesos 0.19.0
+    from mesos import Executor, MesosExecutorDriver
+    import mesos_pb2
 
 def main():
     def handler(signum, _):
@@ -24,7 +32,7 @@ def main():
     signal.signal(signal.SIGABRT, handler)
     signal.signal(signal.SIGPIPE, handler)
     signal.signal(signal.SIGSEGV, handler)
-    driver = mesos.MesosExecutorDriver(DockerExecutor(sys.argv[1:]))
+    driver = MesosExecutorDriver(DockerExecutor(sys.argv[1:]))
     log.info('Ready to serve!')
     exit(0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1)
 
@@ -47,7 +55,7 @@ syslog_format = logging.Formatter("%(name)s[%(process)d]: %(message)s")
 syslog.setFormatter(syslog_format)
 log.addHandler(syslog)
 
-class DockerExecutor(mesos.Executor):
+class DockerExecutor(Executor):
     def __init__(self, args):
         self.args   = args
         self.task   = None
